@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException;
 
 class MunicipalitiesController extends Controller
 {
@@ -17,57 +16,57 @@ class MunicipalitiesController extends Controller
      */
     public function index($uf)
     {
-        // Verifica se $uf possui o formato esperado (duas letras)
         if (!preg_match('/^[A-Za-z]{2}$/', $uf)) {
             return response()->json(['error' => 'O parâmetro UF é inválido.'], 400);
         }
 
-        // Obtém o provedor de API a ser usado (brasilapi ou ibge)
         $apiProvider = strtolower(env('API_PROVIDER', 'brasilapi'));
-
-        if ($apiProvider === 'brasilapi') {
-            $apiUrl = "https://brasilapi.com.br/api/ibge/municipios/v1/$uf";
-            $dataProvider = 'BRASILAPI';
-        } elseif ($apiProvider === 'ibge') {
-            $apiUrl = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/$uf/municipios";
-            $dataProvider = 'IBGE';
-        } else {
-            // Em caso de API_PROVIDER inválido, usar a BRASILAPI por padrão
-            $apiUrl = "https://brasilapi.com.br/api/ibge/municipios/v1/$uf";
-            $dataProvider = 'BRASILAPI';
-        }
+        $apiUrl = ($apiProvider === 'ibge') ?
+            "https://servicodados.ibge.gov.br/api/v1/localidades/estados/$uf/municipios" :
+            "https://brasilapi.com.br/api/ibge/municipios/v1/$uf";
 
         $cacheKey = 'municipios_' . $uf;
         $municipalities = Cache::get($cacheKey);
 
         if (!$municipalities) {
-            $client = new Client();
-            try {
-                $response = $client->get($apiUrl);
-                $apiData = json_decode($response->getBody(), true);
+            $apiData = $this->fetchDataFromApi($apiUrl);
 
+            if ($apiData !== null) {
                 $municipalities = $this->formatApiData($apiData);
-
                 Cache::put($cacheKey, $municipalities, 360);
-            } catch (\GuzzleHttp\Exception\RequestException $e) {
-                return response()->json(['error' => 'Erro na requisição para a API.'], 500);
-            } catch (\Exception $e) {
-                return response()->json(['error' => 'Ocorreu um erro ao processar a requisição.'], 500);
+            } else {
+                return response()->json(['error' => 'Ocorreu um erro ao obter os dados.'], 500);
             }
         }
 
-        // Implementação da paginação dos resultados
         $page = request('page', 1);
         $perPage = 10;
         $municipalitiesPaginated = array_slice($municipalities, ($page - 1) * $perPage, $perPage);
 
         return response()->json([
-            'data_provider' => $dataProvider,
+            'data_provider' => $apiProvider,
             'municipalities' => $municipalitiesPaginated,
             'current_page' => $page,
             'total' => count($municipalities),
             'per_page' => $perPage
         ]);
+    }
+
+    /**
+     * Obtém os dados da API.
+     *
+     * @param string $apiUrl URL da API.
+     * @return array|null
+     */
+    private function fetchDataFromApi($apiUrl)
+    {
+        $client = new Client();
+        try {
+            $response = $client->get($apiUrl);
+            return json_decode($response->getBody(), true);
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
