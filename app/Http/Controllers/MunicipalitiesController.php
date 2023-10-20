@@ -17,6 +17,11 @@ class MunicipalitiesController extends Controller
      */
     public function index($uf)
     {
+        // Verifica se $uf possui o formato esperado (duas letras)
+    if (!preg_match('/^[A-Za-z]{2}$/', $uf)) {
+        return response()->json(['error' => 'O parâmetro UF é inválido.'], 400);
+    }
+    
         // Obtém o provedor de API a ser usado (brasilapi ou ibge)
         $apiProvider = strtolower(env('API_PROVIDER', 'brasilapi'));
 
