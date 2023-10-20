@@ -18,10 +18,10 @@ class MunicipalitiesController extends Controller
     public function index($uf)
     {
         // Verifica se $uf possui o formato esperado (duas letras)
-    if (!preg_match('/^[A-Za-z]{2}$/', $uf)) {
-        return response()->json(['error' => 'O parâmetro UF é inválido.'], 400);
-    }
-    
+        if (!preg_match('/^[A-Za-z]{2}$/', $uf)) {
+            return response()->json(['error' => 'O parâmetro UF é inválido.'], 400);
+        }
+
         // Obtém o provedor de API a ser usado (brasilapi ou ibge)
         $apiProvider = strtolower(env('API_PROVIDER', 'brasilapi'));
 
@@ -49,8 +49,10 @@ class MunicipalitiesController extends Controller
                 $municipalities = $this->formatApiData($apiData);
 
                 Cache::put($cacheKey, $municipalities, 360);
+            } catch (\GuzzleHttp\Exception\RequestException $e) {
+                return response()->json(['error' => 'Erro na requisição para a API.'], 500);
             } catch (\Exception $e) {
-                return response()->json(['error' => 'Ocorreu um erro ao obter os dados.'], 500);
+                return response()->json(['error' => 'Ocorreu um erro ao processar a requisição.'], 500);
             }
         }
 
