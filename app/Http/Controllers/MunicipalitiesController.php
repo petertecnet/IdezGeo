@@ -79,8 +79,8 @@ class MunicipalitiesController extends Controller
             return response()->json(['error' => 'O parâmetro page deve ser maior ou igual a 1.'], 400);
         }
         $perPage = 10;
-        $municipalitiesPaginated = array_slice($municipalities, ($page - 1) * $perPage, $perPage);
-        
+         $municipalitiesPaginated = collect($municipalities)->forPage($page, $perPage)->values();
+
         return response()->json([
             'data_provider' => $dataProvider,
             'municipalities' => $municipalitiesPaginated,
