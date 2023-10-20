@@ -1,10 +1,10 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
 
 class MunicipalitiesController extends Controller
 {
@@ -29,16 +29,22 @@ class MunicipalitiesController extends Controller
 
         if (!$municipalities) {
             $client = new Client();
-            $response = $client->get($apiUrl);
-            $apiData = json_decode($response->getBody(), true);
+            try {
+                $response = $client->get($apiUrl);
+                $apiData = json_decode($response->getBody(), true);
 
-            $municipalities = $this->formatApiData($apiData);
+                $municipalities = $this->formatApiData($apiData);
 
-            Cache::put($cacheKey, $municipalities, 360);
+                Cache::put($cacheKey, $municipalities, 360);
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Ocorreu um erro ao obter os dados.'], 500);
+            }
         }
 
         return response()->json(['data_provider' => $dataProvider, 'municipalities' => $municipalities]);
     }
+
+
 
     private function formatApiData($apiData)
     {
